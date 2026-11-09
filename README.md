@@ -64,6 +64,8 @@ Unit tests use a deterministic fake engine; they test HTTP contracts, security, 
 
 See `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/DEPLOYMENT.md`, `docs/MODEL_PROVENANCE.md`, `docs/SECURITY.md`, `docs/TEST_PLAN.md`.
 
-## GitHub handoff
+## Repository and CI ownership
 
-The archive includes `scripts/publish_to_github.sh` for a fast-forward-only source handoff to the pre-existing `main` repository. It clones the remote, preserves its history and any teammate-managed CI, copies the extracted source, commits only changed files and pushes without `--force`. It needs GitHub credentials and network access on the machine where it is run. Review the files before executing the script. This handoff script is **not** a GitLab CI pipeline.
+GitHub `personal/main` and organization GitLab `origin/master` are the release branches. The initial handoff is complete; `scripts/publish_to_github.sh` is legacy and should **not** be run during ongoing development. No `.gitlab-ci.yml` is maintained here: the deployment team will provide CI and its protected server `.env` variable. CI must use the existing `origin/master` branch, not create an unrelated `main` in GitLab. Server-first workflow: review this code, synchronize both remotes, then let GitLab CI build/download/integrate-test on the target server after the pipeline is added. No local model downloads or Docker builds are required.
+
+Before deployment, copy the appropriate template to `.env` on the deployment host (or supply its contents through a protected GitLab file variable), set a strong independent API token and verify the LAN bind IP. `python3`, rather than `python`, may be the available Ubuntu command. Local tests are optional developer checks, not a server deployment prerequisite.

@@ -10,8 +10,18 @@ export default function App(){
   const [result, setResult] = useState<DetectResult|null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [apiReady, setApiReady] = useState<boolean|null>(null);
   const [threshold, setThreshold] = useState(0.5);
   const [filter, setFilter] = useState<'all'|'stamp'|'signature'>('all');
+  useEffect(()=>{
+    let disposed=false;
+    async function poll(){
+      try{const r=await fetch('/api/health/ready',{cache:'no-store'});if(!disposed)setApiReady(r.ok);}
+      catch{if(!disposed)setApiReady(false);}
+    }
+    void poll();const id=window.setInterval(()=>void poll(),20000);
+    return()=>{disposed=true;window.clearInterval(id)};
+  },[]);
   useEffect(()=>{if(!file){setPreview('');return;} const url=URL.createObjectURL(file);setPreview(url);return()=>URL.revokeObjectURL(url);},[file]);
   async function detect(){
     if(!file)return;
@@ -27,13 +37,14 @@ export default function App(){
   const shown = result?.objects.filter(o=>filter==='all'||o.type===filter) || [];
   return <main className="shell">
     <header><div className="badge">SUPERAPP · MODULE 06</div><h1>شناسایی مهر و امضا</h1><p>شناسایی جایگاه مهر و امضا در تصاویر اسناد، با مدل RF-DETR و پردازش CPU</p></header>
+    {apiReady===false&&<div className="error" role="status">سرویس تشخیص هنوز آماده نیست. صفحه فعال است؛ وضعیت API به طور خودکار بررسی می‌شود.</div>}
     <section className="grid">
       <div className="panel controls">
         <h2>تصویر سند</h2>
         <label className="drop" htmlFor="upload"><span>تصویر را انتخاب کنید</span><small>JPG, PNG, WebP · حداکثر ۱۰ مگابایت</small></label>
         <input id="upload" type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{setFile(e.target.files?.[0]||null);setResult(null);setError('');}} />
         <label className="field">حداقل اطمینان: {Math.round(threshold*100)}٪ <input type="range" min="0.1" max="0.95" step="0.05" value={threshold} onChange={e=>setThreshold(Number(e.target.value))}/></label>
-        <button onClick={detect} disabled={!file||loading}>{loading?'در حال پردازش...':'شناسایی مهر و امضا'}</button>
+        <button onClick={detect} disabled={!file||loading||apiReady===false}>{loading?'در حال پردازش...':'شناسایی مهر و امضا'}</button>
         {error&&<p className="error" role="alert">{error}</p>}
         <p className="hint">فقط مختصات مهر و امضا گزارش می‌شود. محتوای اسناد ذخیره نمی‌شود.</p>
         {result&&<div className="summary"><div><strong>{result.counts.stamp}</strong><span>مهر</span></div><div><strong>{result.counts.signature}</strong><span>امضا</span></div><div><strong>{Math.round(result.processing_time_ms)}</strong><span>ms</span></div></div>}

@@ -12,6 +12,7 @@ from app.core.config import Settings
 from app.inference.rfdetr import RFDETREngine
 from app.services.detection import DetectionService
 from app.preprocessing.images import InvalidImage
+from app.core.request_limits import RequestBodyLimitMiddleware
 
 logger = logging.getLogger(__name__)
 REQUESTS = Counter("superapp_mark_requests_total", "Stamp/signature requests", ["route", "status"])
@@ -35,14 +36,6 @@ def create_app(settings: Settings | None = None, engine_factory: Callable = RFDE
 
     @app.middleware("http")
     async def headers(request: Request, call_next):
-        if request.method == "POST" and request.url.path.startswith("/v1/"):
-            value = request.headers.get("content-length")
-            if value is not None:
-                try:
-                    if int(value) > settings.max_request_bytes:
-                        return JSONResponse({"detail": "Request body too large"}, status_code=413)
-                except ValueError:
-                    return JSONResponse({"detail": "Invalid content length"}, status_code=400)
         result = await call_next(request)
         result.headers["X-Content-Type-Options"] = "nosniff"
         result.headers["Cache-Control"] = "no-store"
@@ -51,6 +44,8 @@ def create_app(settings: Settings | None = None, engine_factory: Callable = RFDE
     def authorize(x_api_key: str | None = Header(default=None)):
         if settings.api_token and not hmac.compare_digest(x_api_key or "", settings.api_token):
             raise HTTPException(401, detail="Invalid API key")
+
+    app.add_middleware(RequestBodyLimitMiddleware, max_bytes=settings.max_request_bytes)
 
     @app.get("/health/live")
     async def live():
@@ -77,39 +72,44 @@ def create_app(settings: Settings | None = None, engine_factory: Callable = RFDE
     async def process(file: UploadFile, document_id: str, page_id: str, page_number: int,
                       threshold: float | None, kind: str | None):
         route = kind or "both"
-        if len(document_id) > 128 or len(page_id) > 128 or not document_id.strip() or not page_id.strip():
-            raise HTTPException(422, "Invalid document/page ID")
-        if page_number < 1 or page_number > 10000:
-            raise HTTPException(422, "Invalid page_number")
-        value = settings.score_threshold if threshold is None else threshold
-        if not 0.01 <= value <= 0.99:
-            raise HTTPException(422, "threshold must be in [0.01,0.99]")
-        max_bytes = settings.max_upload_mb * 1024 * 1024
-        data = await file.read(max_bytes + 1)
-        if len(data) > max_bytes:
-            raise HTTPException(413, "Image too large")
         try:
-            await asyncio.wait_for(app.state.semaphore.acquire(), timeout=settings.max_queue_wait_seconds)
-        except asyncio.TimeoutError as exc:
-            REQUESTS.labels(route, "busy").inc()
-            raise HTTPException(503, "Inference capacity exceeded", headers={"Retry-After": "3"}) from exc
-        import time
-        start = time.perf_counter()
-        try:
-            result = await run_in_threadpool(app.state.service.process, data, (file.filename or "image")[:160],
-                                             document_id, page_id, page_number, value, kind)
-            REQUESTS.labels(route, "ok").inc()
-            return result
-        except InvalidImage as exc:
-            REQUESTS.labels(route, "invalid").inc()
-            raise HTTPException(422, str(exc)) from exc
-        except Exception:
-            REQUESTS.labels(route, "error").inc()
-            logger.exception("Stamp/signature inference failed")
-            raise HTTPException(500, "Inference failed; see server diagnostics")
+            if len(document_id) > 128 or len(page_id) > 128 or not document_id.strip() or not page_id.strip():
+                raise HTTPException(422, "Invalid document/page ID")
+            if page_number < 1 or page_number > 10000:
+                raise HTTPException(422, "Invalid page_number")
+            value = settings.score_threshold if threshold is None else threshold
+            if not 0.01 <= value <= 0.99:
+                raise HTTPException(422, "threshold must be in [0.01,0.99]")
+            try:
+                await asyncio.wait_for(app.state.semaphore.acquire(), timeout=settings.max_queue_wait_seconds)
+            except asyncio.TimeoutError as exc:
+                REQUESTS.labels(route, "busy").inc()
+                raise HTTPException(503, "Inference capacity exceeded", headers={"Retry-After": "3"}) from exc
+            import time
+            start = time.perf_counter()
+            try:
+                max_bytes = settings.max_upload_mb * 1024 * 1024
+                data = await file.read(max_bytes + 1)
+                if len(data) > max_bytes:
+                    REQUESTS.labels(route, "oversize").inc()
+                    raise HTTPException(413, "Image too large")
+                result = await run_in_threadpool(app.state.service.process, data, (file.filename or "image")[:160],
+                                                 document_id, page_id, page_number, value, kind)
+                REQUESTS.labels(route, "ok").inc()
+                return result
+            except InvalidImage as exc:
+                REQUESTS.labels(route, "invalid").inc()
+                raise HTTPException(422, str(exc)) from exc
+            except HTTPException:
+                raise
+            except Exception:
+                REQUESTS.labels(route, "error").inc()
+                logger.exception("Stamp/signature inference failed")
+                raise HTTPException(500, "Inference failed; see server diagnostics")
+            finally:
+                LATENCY.labels(route).observe(time.perf_counter() - start)
+                app.state.semaphore.release()
         finally:
-            LATENCY.labels(route).observe(time.perf_counter() - start)
-            app.state.semaphore.release()
             await file.close()
 
     @app.post("/v1/detect", dependencies=[Depends(authorize)])

@@ -5,4 +5,5 @@
 - Bind API to loopback. Bind UI to the known LAN address only when appropriate and permitted. No outgoing network calls from inference and no arbitrary model URLs.
 - The model checkpoint is a third-party Torch pickle format; checksum verification limits substitution, not inherent pickle risks. Use isolated and trusted build infrastructure.
 - Do not log user image contents; no retained image or database. Limit payload bytes and decoded pixels. API and UI use read-only rootfs, cap drops, no-new-privileges, non-root users and tmpfs.
+- ASGI body guards enforce byte limits before multipart parsing, including absent Content-Length. Reverse-proxy limits provide an additional line of defense. Concurrent connections still need perimeter rate limits.
 - Benchmark high-load resource behavior before exposure. A semaphore bounds CPU work but does not replace upstream request limits and abusive-client protections.

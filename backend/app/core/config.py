@@ -30,6 +30,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_security(self):
+        if self.max_request_bytes <= self.max_upload_mb * 1024 * 1024:
+            raise ValueError("MAX_REQUEST_BYTES must exceed MAX_UPLOAD_MB to include multipart overhead")
         if self.app_env not in {"test", "development", "production"}:
             raise ValueError("APP_ENV must be test, development, or production")
         if self.app_env == "production" and len(self.api_token) < 24:

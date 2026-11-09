@@ -2,7 +2,7 @@
 
 doctor:
 	docker compose version
-	docker compose --env-file .env config --quiet
+	docker compose config --quiet
 build:
 	docker compose --env-file .env build model-setup api ui
 model:

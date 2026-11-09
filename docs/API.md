@@ -31,4 +31,4 @@ Example response (synthetic values):
 }
 ```
 
-`bbox` uses XYXY values in EXIF-corrected source pixels. Detections can be empty and scores are model confidence, not calibrated probabilities. HTTP 401 auth error; 413 oversized declared/image body; 422 unsupported image or input; 503 saturated inference queue; 500 runtime model failure. One request = one image; no DB, asynchronous jobs, or long-running task IDs.
+`bbox` uses XYXY values in EXIF-corrected source pixels. Detections can be empty and scores are model confidence, not calibrated probabilities. HTTP 401 auth error; 413 oversized declared/streamed multipart or image body; 422 unsupported image or input; 503 saturated inference queue; 500 runtime model failure. One request = one image; no DB, asynchronous jobs, or long-running task IDs.

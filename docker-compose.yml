@@ -30,6 +30,10 @@ services:
       args:
         <<: *pip-args
         TORCH_CPU_INDEX_URL: ${TORCH_CPU_INDEX_URL:-https://download.pytorch.org/whl/cpu}
+        APT_PRIMARY_DEBIAN_URL: ${APT_PRIMARY_DEBIAN_URL:-https://mirror.metanet.ch/debian}
+        APT_PRIMARY_SECURITY_URL: ${APT_PRIMARY_SECURITY_URL:-https://mirror.metanet.ch/debian-security}
+        APT_FALLBACK_DEBIAN_URL: ${APT_FALLBACK_DEBIAN_URL:-https://mirrors.huaweicloud.com/repository/debian}
+        APT_FALLBACK_SECURITY_URL: ${APT_FALLBACK_SECURITY_URL:-https://mirrors.huaweicloud.com/repository/debian-security}
     image: superapp-signature-stamp-api:local
     depends_on:
       model-setup: {condition: service_completed_successfully}
@@ -70,7 +74,7 @@ services:
     cap_drop: [ALL]
     healthcheck:
       test: [CMD, python, -c, "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=5)"]
-      start_period: 240s
+      start_period: 300s
       interval: 30s
       timeout: 8s
       retries: 3
@@ -80,11 +84,14 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         NPM_REGISTRY_URL: ${NPM_REGISTRY_URL:-https://package-mirror.liara.ir/repository/npm/}
+        NPM_FALLBACK_REGISTRY_URL: ${NPM_FALLBACK_REGISTRY_URL:-https://registry.npmjs.org/}
+        APK_PRIMARY_MIRROR_URL: ${APK_PRIMARY_MIRROR_URL:-https://linux-mirror.liara.ir/repository/alpine}
+        APK_FALLBACK_MIRROR_URL: ${APK_FALLBACK_MIRROR_URL:-https://mirrors.huaweicloud.com/alpine}
     image: superapp-signature-stamp-ui:local
     restart: unless-stopped
     init: true
-    depends_on:
-      api: {condition: service_healthy}
+    # Serve static UI even if model setup / API initialization fails.
+    # The Nginx variable-based proxy resolves the API dynamically when available.
     environment:
       API_TOKEN: ${API_TOKEN:-}
     ports:
