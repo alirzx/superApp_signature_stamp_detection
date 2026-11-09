@@ -13,4 +13,5 @@ Real deployment gates on target host:
 7. Verify `127.0.0.1:8006` is not LAN reachable, UI is reachable on approved `192.168.4.209:8087`, and API token is not in the downloaded JS.
 8. Verify 401 unauthenticated, 413 oversize, 422 corrupt image, 503 saturation, no empty placeholder detections, and that UI works after restart.
 9. Inspect ASGI streamed/multipart body limit, missing Content-Length, API load saturation and early-return cleanup.
-10. Record the model inference result, peak resident memory, CPU latency, and deployment evidence on the server. Enable automatic GitLab deploy only after the team reviews and validates the pipeline. No laptop Docker build is required.
+10. Verify the active GitLab `master` pipeline pulls an existing, correctly maintained server branch before building. The current `git pull origin main` does not match the pipeline's `master` trigger and must be reviewed by the CI owner without changing this source patch.
+11. Record the model inference result, peak resident memory, CPU latency, and deployment evidence on the server. Enable automatic GitLab deploy only after the team reviews and validates the pipeline. No laptop Docker build is required.

@@ -2,7 +2,7 @@
 
 Standalone CPU-only image detection microservice using the **same pinned RF-DETR checkpoint as the Organizational Wiki Doc Scanner**. It detects **stamps** and **handwritten signatures** in JPG/PNG/WebP documents; two checkbox classes from the original four-class checkpoint are intentionally discarded.
 
-**Components:** FastAPI backend, RF-DETR/PyTorch CPU model, one-shot Hugging Face model downloader with SHA256 manifest, React/TypeScript/Vite RTL UI served by non-root Nginx, Docker Compose, explicit local/production `.env` templates, tests and deployment docs. No Redis, MinIO, database, OCR, figure/table extraction, or separate worker is required. **No CI file is included; the team owns GitLab CI.**
+**Components:** FastAPI backend, RF-DETR/PyTorch CPU model, one-shot Hugging Face model downloader with SHA256 manifest, React/TypeScript/Vite RTL UI served by non-root Nginx, Docker Compose, explicit local/production `.env` templates, tests and deployment docs. No Redis, MinIO, database, OCR, figure/table extraction, or separate worker is required. **The existing `.gitlab-ci.yml` is owned by the deployment team and is intentionally unchanged by this repository polish.**
 
 ## Source and model
 
@@ -14,7 +14,9 @@ Standalone CPU-only image detection microservice using the **same pinned RF-DETR
 - Model runs **on CPU**, but RF-DETR Base has an appreciable RAM/latency cost. A 4 GB API memory limit and two CPU cores are provisional, **not validated performance guarantees**.
 - PyTorch `.pth` weights may use Python pickle. This is a trusted, pinned and SHA256-verified third-party checkpoint, not arbitrary user-uploaded weights. Do not accept runtime model URLs.
 
-## Quick start
+## Server-only build and deployment
+
+The production rollout is performed by the GitLab runner **on the server**. Developers do not need to download pretrained weights or build images locally. The commands below are intended for a privileged operator in the **server checkout** after the team verifies its CI pipeline, host address, and protected `.env`:
 
 Requirements: Docker Engine, Compose v2, access to Docker base images, Liara/Chabokan PyPI mirrors, the official CPU-wheel index, the npm registry, and Hugging Face for the **first** model download. After bootstrap, inference stays offline.
 
@@ -66,6 +68,6 @@ See `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/DEPLOYMENT.md`, `docs/MODEL_PRO
 
 ## Repository and CI ownership
 
-GitHub `personal/main` and organization GitLab `origin/master` are the release branches. The initial handoff is complete; `scripts/publish_to_github.sh` is legacy and should **not** be run during ongoing development. No `.gitlab-ci.yml` is maintained here: the deployment team will provide CI and its protected server `.env` variable. CI must use the existing `origin/master` branch, not create an unrelated `main` in GitLab. Server-first workflow: review this code, synchronize both remotes, then let GitLab CI build/download/integrate-test on the target server after the pipeline is added. No local model downloads or Docker builds are required.
+GitHub `personal/main` and organization GitLab `origin/master` are the release branches. The initial handoff is complete; `scripts/publish_to_github.sh` is legacy and should **not** be run during ongoing development. The team-managed `.gitlab-ci.yml` is already present on both release branches and must be reviewed separately. It triggers on GitLab `master` but currently uses `git pull origin main` inside its remote SSH command: **this is a known branch mismatch and can fail when server `origin/main` does not exist**. The CI owner must reconcile this with the actual deployment checkout before enabling rollout; do not create a stale `main` alias as a substitute. Existing CI is not modified by this source patch. The CI uses `ENV_FILE` as an SCP source and deploys into `/opt/apps/ai-service/signature_stamp_detection`. Server-first workflow: review the code, synchronize both remotes, and let the GitLab runner build/download/integration-test on the target server only after CI and production configuration are approved. No local model downloads or Docker builds are required.
 
 Before deployment, copy the appropriate template to `.env` on the deployment host (or supply its contents through a protected GitLab file variable), set a strong independent API token and verify the LAN bind IP. `python3`, rather than `python`, may be the available Ubuntu command. Local tests are optional developer checks, not a server deployment prerequisite.
