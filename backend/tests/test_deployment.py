@@ -12,7 +12,8 @@ def test_compose_contract():
     assert config['services']['api']['depends_on']['model-setup']['condition']=='service_completed_successfully'
     assert '8006' in str(config['services']['api']['ports'])
     assert '8087' in str(config['services']['ui']['ports'])
-    assert not (ROOT/'.gitlab-ci.yml').exists()
+    # Deployment CI belongs to the teammate and may be present in release branches.
+    # Compose correctness must not depend on whether .gitlab-ci.yml exists.
 
 def test_production_requires_secret():
     with pytest.raises(ValueError): Settings(app_env='production',api_token='short')
