@@ -1,0 +1,33 @@
+worker_processes auto;
+error_log /dev/stderr warn;
+pid /tmp/nginx.pid;
+events { worker_connections 1024; }
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    access_log off;
+    sendfile on;
+    client_max_body_size 12m;
+    server {
+        listen 8080;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+        add_header X-Content-Type-Options nosniff always;
+        location = /healthz { default_type text/plain; return 200 'ok'; }
+        location /api/ {
+            resolver 127.0.0.11 valid=10s ipv6=off;
+            set $api_backend "api:8000";
+            rewrite ^/api/(.*)$ /$1 break;
+            proxy_pass http://$api_backend;
+            proxy_set_header X-API-Key "${API_TOKEN}";
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 60s;
+            proxy_buffering off;
+            client_body_timeout 60s;
+        }
+        location / { try_files $uri $uri/ /index.html; }
+    }
+}

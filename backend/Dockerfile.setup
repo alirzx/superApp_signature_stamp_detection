@@ -1,0 +1,12 @@
+# syntax=docker/dockerfile:1.6
+FROM python:3.11-slim-bookworm
+ARG PIP_PRIMARY_INDEX_URL=https://package-mirror.liara.ir/repository/pypi/simple
+ARG PIP_FALLBACK_INDEX_URL=https://mirror2.chabokan.net/pypi/simple/
+WORKDIR /srv
+COPY backend/requirements-setup.txt /tmp/requirements-setup.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    (python -m pip install --timeout 60 --retries 3 --index-url "$PIP_PRIMARY_INDEX_URL" -r /tmp/requirements-setup.txt \
+     || python -m pip install --timeout 60 --retries 3 --index-url "$PIP_FALLBACK_INDEX_URL" -r /tmp/requirements-setup.txt)
+COPY backend/app/core /srv/app/core
+COPY backend/scripts/prepare_model.py /srv/scripts/prepare_model.py
+CMD ["python", "-m", "scripts.prepare_model"]
