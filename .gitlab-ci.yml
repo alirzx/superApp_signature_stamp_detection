@@ -16,6 +16,5 @@ deploy:
   only:
     - master
   tags:
-    - linux
-    - bina
+    - ai-services
     - shell
