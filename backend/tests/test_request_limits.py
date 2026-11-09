@@ -28,3 +28,18 @@ def test_invalid_request_budget(tmp_path):
     with pytest.raises(ValueError):
         Settings(app_env="test", api_token="key", model_dir=tmp_path,
                  max_upload_mb=10, max_request_bytes=10*1024*1024)
+
+
+def test_chunked_body_without_content_length_is_413(tmp_path):
+    settings = Settings(app_env="test", api_token="key", model_dir=tmp_path,
+                        max_upload_mb=1, max_request_bytes=1048577)
+    # A generator is sent without Content-Length, as with streamed/chunked HTTP.
+    def oversized_chunks():
+        yield b"x" * 600000
+        yield b"y" * 600000
+
+    with TestClient(create_app(settings=settings, engine_factory=FakeEngine)) as client:
+        response = client.post("/v1/detect", headers={"X-API-Key": "key",
+                               "Content-Type": "multipart/form-data; boundary=xyz"},
+                               content=oversized_chunks())
+        assert response.status_code == 413
