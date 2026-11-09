@@ -14,7 +14,7 @@ deploy:
     - scp -P "$SSH_PORT" "$ENV_FILE" "$SSH_USER@$VM_IPADDRESS:/opt/apps/ai-service/signature_stamp_detection/.env"
     - ssh $SSH_USER@$VM_IPADDRESS -p ${SSH_PORT} "cd /opt/apps/ai-service/signature_stamp_detection && git pull origin main && docker compose up --build -d"
   only:
-    - main
+    - master
   tags:
     - linux
     - bina
