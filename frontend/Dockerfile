@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM docker.arvancloud.ir/node:22-alpine AS build
 ARG NPM_REGISTRY_URL=https://package-mirror.liara.ir/repository/npm/
 ARG NPM_FALLBACK_REGISTRY_URL=https://registry.npmjs.org/
 WORKDIR /web
@@ -16,7 +16,7 @@ RUN set -eu; \
 COPY frontend/ ./
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM docker.arvancloud.ir/nginx:1.27-alpine
 ARG APK_PRIMARY_MIRROR_URL=https://linux-mirror.liara.ir/repository/alpine
 ARG APK_FALLBACK_MIRROR_URL=https://mirrors.huaweicloud.com/alpine
 # Liara and Huawei Alpine repositories, with retry; avoid stock upstream by default.

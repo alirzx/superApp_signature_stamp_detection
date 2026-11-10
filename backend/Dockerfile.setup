@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.6
-FROM python:3.11-slim-bookworm
+FROM docker.arvancloud.ir/python:3.11-slim-bookworm
 ARG PIP_PRIMARY_INDEX_URL=https://package-mirror.liara.ir/repository/pypi/simple
 ARG PIP_FALLBACK_INDEX_URL=https://mirror2.chabokan.net/pypi/simple/
 WORKDIR /srv
